@@ -5,6 +5,8 @@
 
 int sepol_expected_argc(u32 cmd);
 
+int ksu_hide_setprocattr(const char *name, void *value, size_t size);
+
 void ksu_selinux_hide_init();
 void ksu_selinux_hide_exit();
 void ksu_selinux_hide_handle_second_stage();

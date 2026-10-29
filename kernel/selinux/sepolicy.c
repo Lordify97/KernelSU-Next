@@ -162,6 +162,14 @@ static bool is_redundant_avtab_node(struct avtab_node *node)
     return node->datum.u.data == 0U;
 }
 
+// avtab.htable is a struct flex_array * on older kernels. Kbuild probes the
+// kernel's avtab.h (KSU_COMPAT_AVTAB_FLEX_ARRAY) because some trees report a
+// newer LINUX_VERSION_CODE but still carry the flex_array implementation.
+#if defined(KSU_COMPAT_AVTAB_FLEX_ARRAY) || \
+    LINUX_VERSION_CODE < KERNEL_VERSION(5, 1, 0)
+#define KSU_AVTAB_HTABLE_FLEX_ARRAY 1
+#endif
+
 static bool remove_avtab_node(struct policydb *db, struct avtab_node *node)
 {
     int i;
@@ -181,7 +189,7 @@ static bool remove_avtab_node(struct policydb *db, struct avtab_node *node)
 
     for (i = 0; i < db->te_avtab.nslot; i++) {
         prev = NULL;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
+#ifndef KSU_AVTAB_HTABLE_FLEX_ARRAY
         for (n = db->te_avtab.htable[i]; n; prev = n, n = n->next) {
 #else
         for (n = flex_array_get_ptr(db->te_avtab.htable, i); n;
@@ -193,7 +201,7 @@ static bool remove_avtab_node(struct policydb *db, struct avtab_node *node)
             if (prev)
                 prev->next = n->next;
             else {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
+#ifndef KSU_AVTAB_HTABLE_FLEX_ARRAY
                 db->te_avtab.htable[i] = n->next;
 #else
                 flex_array_put_ptr(db->te_avtab.htable, i, n->next,
@@ -213,7 +221,7 @@ static bool remove_avtab_node(struct policydb *db, struct avtab_node *node)
                 // data is u32
                 shrink_size += sizeof(n->datum.u.data);
             n->next = NULL;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
+#ifndef KSU_AVTAB_HTABLE_FLEX_ARRAY
             removed.htable[0] = n;
 #else
             flex_array_put_ptr(removed.htable, 0, n, GFP_ATOMIC | __GFP_ZERO);

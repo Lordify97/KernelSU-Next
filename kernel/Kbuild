@@ -322,6 +322,14 @@ endif
 ifeq ($(shell grep -q "cpus_ptr;" $(srctree)/include/linux/sched.h; echo $$?),0)
 ccflags-y += -DKSU_COMPAT_HAS_BACKPORTED_CPUS_PTR
 endif
+# __poll_t may be backported into uapi/linux/types.h on pre-4.16 kernels
+ifeq ($(shell grep -q "__poll_t;" $(srctree)/include/uapi/linux/types.h; echo $$?),0)
+ccflags-y += -DKSU_COMPAT_HAS_POLL_T
+endif
+# avtab.htable may still be a flex_array regardless of reported kernel version
+ifeq ($(shell grep -q "struct flex_array \*htable" $(srctree)/security/selinux/ss/avtab.h; echo $$?),0)
+ccflags-y += -DKSU_COMPAT_AVTAB_FLEX_ARRAY
+endif
 
 # Handle optional backports
 ifeq ($(shell grep -q "strncpy_from_user_nofault" $(srctree)/include/linux/uaccess.h; echo $$?),0)

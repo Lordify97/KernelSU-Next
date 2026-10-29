@@ -191,6 +191,42 @@ static bool ksu_should_hide_context(const char *str)
     return false;
 }
 
+// Manual hook: newer kernels patch security_selinux_setprocattr() in
+// security/selinux/hooks.c to call this directly, since the setprocattr
+// LSM slot only accepts a single registrant (see ksu_setprocattr_wrapper
+// in hook/lsm_hooks.c for the LSM-hook path used on older kernels).
+int ksu_hide_setprocattr(const char *name, void *value, size_t size)
+{
+    char buf[64] = { 0 };
+    size_t len;
+    char *str;
+
+    if (unlikely(!ksu_selinux_hide_enabled))
+        return 0;
+
+    // only appuid
+    if (current_uid().val < 10000)
+        return 0;
+
+    if (!size || !name || !value)
+        return 0;
+
+    if (strcmp(name, "current"))
+        return 0;
+
+    str = (char *)value;
+    len = (size < sizeof(buf) - 1) ? size : sizeof(buf) - 1;
+    memcpy(buf, str, len);
+
+    if (!ksu_should_hide_context(buf))
+        return 0;
+
+    pr_info_ratelimited("selinux_hide: setprocattr: destroy: %s\n", buf);
+    str[1] = '1';
+
+    return 0;
+}
+
 struct ksu_dirty_rule {
     const char *scon;
     const char *tcon;
