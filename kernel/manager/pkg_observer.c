@@ -89,20 +89,32 @@ static KSU_DECL_FSNOTIFY_OPS(ksu_handle_inode_event)
 	return 0;
 }
 
-static const struct fsnotify_ops ksu_ops = {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)
-	.handle_inode_event = ksu_handle_inode_event,
-#else
-	.handle_event = ksu_handle_inode_event,
-#endif
-};
-
 static void __maybe_unused m_free(struct fsnotify_mark *m)
 {
 	if (m) {
 		kfree(m);
 	}
 }
+
+static const struct fsnotify_ops ksu_ops = {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)
+	.handle_inode_event = ksu_handle_inode_event,
+#else
+	.handle_event = ksu_handle_inode_event,
+#endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
+	/*
+	 * On this path add_mark_on_inode() calls fsnotify_init_mark(m, g) with
+	 * no free function of its own, so fsnotify_final_mark_destroy() calls
+	 * group->ops->free_mark() unconditionally (no NULL check) once the
+	 * mark's refcount drops to zero. Marks here come from kzalloc(), not
+	 * fsnotify_mark_cache, so m_free() is what must release them.
+	 * On the pre-4.12 path below, fsnotify_init_mark(m, m_free) already
+	 * takes the free function directly; this field isn't consulted there.
+	 */
+	.free_mark = m_free,
+#endif
+};
 
 static int add_mark_on_inode(struct inode *inode, u32 mask,
 			     struct fsnotify_mark **out)
@@ -202,6 +214,18 @@ void __exit ksu_observer_exit(void)
 {
 	unwatch_one_dir(&g_adb_watch);
 	unwatch_one_dir(&g_watch);
+#ifdef KSU_COMPAT_HAS_FSNOTIFY_WAIT_MARKS_DESTROYED
+	/*
+	 * A group's marks are released by a delayed work
+	 * (fsnotify_mark_destroy_workfn) that runs after synchronize_srcu() and
+	 * calls group->ops->free_mark(), reading mark->group on the way. Drain
+	 * that work *before* dropping the group: dropping it first makes those
+	 * callbacks read a freed group, and returning before the work has run
+	 * at all lets the module be unloaded while the callback text is still
+	 * pending - either way, a use-after-free in fsnotify_mark_destroy_workfn.
+	 */
+	fsnotify_wait_marks_destroyed();
+#endif // #ifdef KSU_COMPAT_HAS_FSNOTIFY_WAIT_MARKS_DESTROYED
 	fsnotify_put_group(g);
 	pr_info("observer exit done\n");
 }

@@ -322,6 +322,9 @@ endif
 ifeq ($(shell grep -q "cpus_ptr;" $(srctree)/include/linux/sched.h; echo $$?),0)
 ccflags-y += -DKSU_COMPAT_HAS_BACKPORTED_CPUS_PTR
 endif
+ifeq ($(shell grep -q "fsnotify_wait_marks_destroyed" $(srctree)/include/linux/fsnotify_backend.h 2>/dev/null; echo $$?),0)
+ccflags-y += -DKSU_COMPAT_HAS_FSNOTIFY_WAIT_MARKS_DESTROYED
+endif
 # __poll_t may be backported into uapi/linux/types.h on pre-4.16 kernels
 ifeq ($(shell grep -q "__poll_t;" $(srctree)/include/uapi/linux/types.h; echo $$?),0)
 ccflags-y += -DKSU_COMPAT_HAS_POLL_T
