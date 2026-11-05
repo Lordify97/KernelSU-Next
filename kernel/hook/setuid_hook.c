@@ -104,8 +104,6 @@ int ksu_handle_setresuid(uid_t old_uid, uid_t new_uid)
     }
 #endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 
-    pr_info("handle_setresuid from %d to %d\n", old_uid, new_uid);
-
     if (unlikely(is_uid_manager(new_uid))) {
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
@@ -120,7 +118,6 @@ int ksu_handle_setresuid(uid_t old_uid, uid_t new_uid)
         ksu_set_task_tracepoint_flag(current);
 #endif
 
-        pr_info("install fd for manager: %d\n", new_uid);
         ksu_install_fd();
         return 0;
     }

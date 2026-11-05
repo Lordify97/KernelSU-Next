@@ -78,18 +78,6 @@ static u16 allow_list_count = 0;
 
 void ksu_persistent_allow_list(void);
 
-void ksu_show_allow_list(void)
-{
-    int i;
-    struct perm_data *p = NULL;
-    pr_info("ksu_show_allow_list\n");
-    rcu_read_lock();
-    hash_for_each_rcu (allow_list, i, p, list) {
-        pr_info("uid :%d, allow: %d\n", p->profile.curr_uid, p->profile.allow_su);
-    }
-    rcu_read_unlock();
-}
-
 struct app_profile *ksu_get_app_profile(uid_t uid)
 {
     struct perm_data *p = NULL;
@@ -477,9 +465,6 @@ static void do_persistent_allow_list(struct callback_head *_cb)
 
     mutex_lock(&allowlist_mutex);
     hash_for_each (allow_list, i, p, list) {
-        pr_info("save allow list, name: %s uid :%d, allow: %d\n", p->profile.key, p->profile.curr_uid,
-                p->profile.allow_su);
-
         /*
          * The file was opened with O_TRUNC, so a short write (ENOSPC/EIO)
          * leaves a still-magic-valid but truncated list that the next boot
@@ -615,17 +600,14 @@ void ksu_load_allow_list()
 
 		migrate_profile(version, &profile);
 
-		pr_info("load_allow_uid, name: %s, uid: %d, allow: %d\n", profile.key, profile.curr_uid, profile.allow_su);
 		ksu_set_app_profile(&profile);
 	}
-	ksu_show_allow_list();
 	filp_close(fp, 0);
 	if (version < KSU_APP_PROFILE_VER)
 		ksu_persistent_allow_list();
 	return;
 
 exit:
-	ksu_show_allow_list();
 	filp_close(fp, 0);
 }
 
