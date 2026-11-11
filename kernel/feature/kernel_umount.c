@@ -22,6 +22,12 @@
 #include "ksu.h"
 #include "compat/kernel_compat.h"
 
+#ifndef CONFIG_KSU_SUSFS
+static bool ksu_kernel_umount_enabled = true;
+#else
+bool ksu_kernel_umount_enabled = true;
+#endif // #ifndef CONFIG_KSU_SUSFS
+
 static bool ksu_kernel_umount_enabled = true;
 
 static int kernel_umount_feature_get(u64 *value)
@@ -78,6 +84,11 @@ static void ksu_sys_umount(const char *mnt, int flags)
 	})
 
 #endif
+#if !defined(CONFIG_KSU_SUSFS) || !defined(CONFIG_KSU_SUSFS_TRY_UMOUNT)
+static void try_umount(const char *mnt, int flags)
+#else
+void try_umount(const char *mnt, int flags)
+#endif
 
 static void try_umount(const char *mnt, int flags)
 {
@@ -99,6 +110,7 @@ struct umount_tw {
 	struct callback_head cb;
 };
 
+#if !defined(CONFIG_KSU_SUSFS) || !defined(CONFIG_KSU_SUSFS_TRY_UMOUNT)
 static void umount_tw_func(struct callback_head *cb)
 {
 	struct umount_tw *tw = container_of(cb, struct umount_tw, cb);
@@ -120,6 +132,7 @@ static void umount_tw_func(struct callback_head *cb)
 int ksu_handle_umount(uid_t old_uid, uid_t new_uid)
 {
 	struct umount_tw *tw;
+	#if defined(CONFIG_KSU_SUSFS) || !defined(CONFIG_KSU_SUSFS_TRY_UMOUNT)
 
 	// if there isn't any module mounted, just ignore it!
 	if (!ksu_module_mounted) {
@@ -158,6 +171,7 @@ int ksu_handle_umount(uid_t old_uid, uid_t new_uid)
 		pr_info("handle umount ignore non zygote child: %d\n", current->pid);
 		return 0;
 	}
+	#endif // #if defined(CONFIG_KSU_SUSFS) || !defined(CONFIG_KSU_SUSFS_TRY_UMOUNT)
 	// umount the target mnt
 	pr_info("handle umount for uid: %d, pid: %d\n", new_uid, current->pid);
 
@@ -175,6 +189,7 @@ int ksu_handle_umount(uid_t old_uid, uid_t new_uid)
 
 	return 0;
 }
+#endif // #if defined(CONFIG_KSU_SUSFS) || !defined(CONFIG_KSU_SUSFS_TRY_UMOUNT)
 
 void __init ksu_kernel_umount_init(void)
 {
