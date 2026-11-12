@@ -28,8 +28,6 @@ static bool ksu_kernel_umount_enabled = true;
 bool ksu_kernel_umount_enabled = true;
 #endif // #ifndef CONFIG_KSU_SUSFS
 
-static bool ksu_kernel_umount_enabled = true;
-
 static int kernel_umount_feature_get(u64 *value)
 {
 	*value = ksu_kernel_umount_enabled ? 1 : 0;
@@ -88,9 +86,6 @@ static void ksu_sys_umount(const char *mnt, int flags)
 static void try_umount(const char *mnt, int flags)
 #else
 void try_umount(const char *mnt, int flags)
-#endif
-
-static void try_umount(const char *mnt, int flags)
 {
 	struct path path;
 	int err = kern_path(mnt, 0, &path);
@@ -109,6 +104,7 @@ static void try_umount(const char *mnt, int flags)
 struct umount_tw {
 	struct callback_head cb;
 };
+#endif
 
 #if !defined(CONFIG_KSU_SUSFS) || !defined(CONFIG_KSU_SUSFS_TRY_UMOUNT)
 static void umount_tw_func(struct callback_head *cb)
