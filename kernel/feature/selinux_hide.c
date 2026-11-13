@@ -191,6 +191,28 @@ static bool ksu_should_hide_context(const char *str)
     return false;
 }
 
+int ksu_hide_setprocattr(const char *name, void *value, size_t size)
+{
+	char *str;
+	bool hide;
+
+	if (unlikely(!ksu_selinux_hide_enabled))
+		return 0;
+	if (current_uid().val < 10000)
+		return 0;
+	if (!value || !size)
+		return 0;
+
+	str = kstrndup(value, size, GFP_KERNEL);
+	if (!str)
+		return 0;
+
+	hide = ksu_should_hide_context(str);
+	kfree(str);
+
+	return hide ? size : 0;
+}
+
 struct ksu_dirty_rule {
     const char *scon;
     const char *tcon;
